@@ -48,16 +48,32 @@ def solve(data):
         assigned = sum(x[(s["id"], m["id"])] for s in servers)
         model.Add(assigned >= rules["min_servers_per_show"])
         model.Add(assigned <= rules["max_servers_per_show"])
+        # 5. Rule: a server's shows must start at least N minutes apart
+    min_gap = rules["min_minutes_between_show_starts"]
+    conflicting_pairs = []
+    for i, a in enumerate(shows):
+        for b in shows[i + 1:]:
+            if abs(a["start_min"] - b["start_min"]) < min_gap:
+                conflicting_pairs.append((a, b))
 
-    # 5. Solve
+    for s in servers:
+        for a, b in conflicting_pairs:
+            model.Add(x[(s["id"], a["id"])] + x[(s["id"], b["id"])] <= 1)
+
+    # 6. Rule: every server works at least N shows
+    for s in servers:
+        worked = sum(x[(s["id"], m["id"])] for m in shows)
+        model.Add(worked >= rules["min_shows_per_server"])
+
+    # 7. Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 10
     status = solver.Solve(model)
-
+    
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return {"status": solver.StatusName(status), "assignments": []}
 
-    # 6. Read the answer back out
+    # 8. Read the answer back out
     assignments = []
     for s in servers:
         worked = [m for m in shows if solver.Value(x[(s["id"], m["id"])]) == 1]
