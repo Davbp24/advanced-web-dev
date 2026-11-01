@@ -1,0 +1,38 @@
+{
+    "date": "2026-10-30",
+    "rules": {
+      "first_show_after_shift_start": 60,
+      "no_show_before_shift_end": 30,
+      "min_minutes_between_show_starts": 45,
+      "preferred_minutes_between_show_starts": 60,
+      "min_shows_per_server": 4,
+      "min_servers_per_show": 1,
+      "max_servers_per_show": 2,
+      "arrive_before_show": 5,
+      "service_minutes": 20,
+      "break_minutes": 60
+},
+    "servers": [
+      { "id": "s1", "name": "Server A", "shift_start": "11:30", "shift_end": "18:00" },
+      { "id": "s2", "name": "Server B", "shift_start": "12:00", "shift_end": "19:00" },
+      { "id": "s3", "name": "Server C", "shift_start": "16:00", "shift_end": "23:00" },
+      { "id": "s4", "name": "Server D", "shift_start": "17:00", "shift_end": "23:00" }
+    ],
+    "shows": [
+      { "id": "m1",  "title": "Movie 1", "start": "12:30", "auditorium": 1 },
+      { "id": "m2",  "title": "Movie 2", "start": "13:00", "auditorium": 2 },
+      { "id": "m3",  "title": "Movie 3", "start": "13:45", "auditorium": 3 },
+      { "id": "m4",  "title": "Movie 4", "start": "14:15", "auditorium": 4 },
+      { "id": "m5",  "title": "Movie 1", "start": "15:30", "auditorium": 1 },
+      { "id": "m6",  "title": "Movie 2", "start": "16:00", "auditorium": 2 },
+      { "id": "m7",  "title": "Movie 3", "start": "16:45", "auditorium": 3 },
+      { "id": "m8",  "title": "Movie 4", "start": "17:15", "auditorium": 4 },
+      { "id": "m9",  "title": "Movie 1", "start": "18:30", "auditorium": 1 },
+      { "id": "m10", "title": "Movie 2", "start": "19:00", "auditorium": 2 },
+      { "id": "m11", "title": "Movie 3", "start": "19:45", "auditorium": 3 },
+      { "id": "m12", "title": "Movie 4", "start": "20:15", "auditorium": 4 },
+      { "id": "m13", "title": "Movie 1", "start": "21:30", "auditorium": 1 },
+      { "id": "m14", "title": "Movie 2", "start": "22:00", "auditorium": 2 },
+      { "id": "m15", "title": "Movie 3", "start": "22:30", "auditorium": 3 }
+    ]
+  }
