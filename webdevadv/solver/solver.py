@@ -66,6 +66,39 @@ def solve(data):
         worked = sum(x[(s["id"], m["id"])] for m in shows)
         model.Add(worked >= rules["min_shows_per_server"])
 
+ # A. Fairness: keep the busiest and least-busy server close together
+    counts = []
+    for s in servers:
+        c = model.NewIntVar(0, len(shows), f"count_{s['id']}")
+        model.Add(c == sum(x[(s["id"], m["id"])] for m in shows))
+        counts.append(c)
+    most = model.NewIntVar(0, len(shows), "most")
+    least = model.NewIntVar(0, len(shows), "least")
+    model.AddMaxEquality(most, counts)
+    model.AddMinEquality(least, counts)
+    imbalance = most - least
+
+    # B. Prefer 60+ min between a server's shows (45-59 is allowed but penalized)
+    preferred_gap = rules["preferred_minutes_between_show_starts"]
+    tight_pairs = []
+    for i, a in enumerate(shows):
+        for b in shows[i + 1:]:
+            gap = abs(a["start_min"] - b["start_min"])
+            if min_gap <= gap < preferred_gap:
+                tight_pairs.append((a, b))
+
+    tight = []
+    for s in servers:
+        for a, b in tight_pairs:
+            both = model.NewBoolVar(f"tight_{s['id']}_{a['id']}_{b['id']}")
+            model.Add(both >= x[(s["id"], a["id"])] + x[(s["id"], b["id"])] - 1)
+            tight.append(both)
+
+    # C. Don't add a second server to a show unless it helps
+    extra_servers = sum(x.values()) - len(shows)
+
+    model.Minimize(10 * imbalance + 3 * sum(tight) + 1 * extra_servers)
+
     # 7. Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 10
