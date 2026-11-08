@@ -1,5 +1,6 @@
 import json
 import sys
+from datetime import datetime
 
 from ortools.sat.python import cp_model
 
@@ -48,7 +49,7 @@ def solve(data):
         assigned = sum(x[(s["id"], m["id"])] for s in servers)
         model.Add(assigned >= rules["min_servers_per_show"])
         model.Add(assigned <= rules["max_servers_per_show"])
-        # 5. Rule: a server's shows must start at least N minutes apart
+    # 5. Rule: a server's shows must start at least N minutes apart
     min_gap = rules["min_minutes_between_show_starts"]
     conflicting_pairs = []
     for i, a in enumerate(shows):
@@ -69,9 +70,14 @@ def solve(data):
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 10
     status = solver.Solve(model)
-    
+
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        return {"status": solver.StatusName(status), "assignments": []}
+        return {
+            "date": data["date"],
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "status": solver.StatusName(status),
+            "assignments": [],
+           }
 
     # 8. Read the answer back out
     assignments = []
@@ -83,7 +89,12 @@ def solve(data):
             "shows": [{"show_id": m["id"], "title": m["title"], "start": m["start"]} for m in worked],
         })
 
-    return {"status": solver.StatusName(status), "assignments": assignments}
+    return {
+            "date": data["date"],
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "status": solver.StatusName(status),
+            "assignments": assignments,
+        }
 
 
 def main():
