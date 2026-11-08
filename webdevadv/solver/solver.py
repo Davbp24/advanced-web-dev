@@ -1,5 +1,6 @@
 import json
 import sys
+from datetime import datetime
 
 from ortools.sat.python import cp_model
 
@@ -48,7 +49,7 @@ def solve(data):
         assigned = sum(x[(s["id"], m["id"])] for s in servers)
         model.Add(assigned >= rules["min_servers_per_show"])
         model.Add(assigned <= rules["max_servers_per_show"])
-        # 5. Rule: a server's shows must start at least N minutes apart
+    # 5. Rule: a server's shows must start at least N minutes apart
     min_gap = rules["min_minutes_between_show_starts"]
     conflicting_pairs = []
     for i, a in enumerate(shows):
@@ -65,13 +66,51 @@ def solve(data):
         worked = sum(x[(s["id"], m["id"])] for m in shows)
         model.Add(worked >= rules["min_shows_per_server"])
 
+ # A. Fairness: keep the busiest and least-busy server close together
+    counts = []
+    for s in servers:
+        c = model.NewIntVar(0, len(shows), f"count_{s['id']}")
+        model.Add(c == sum(x[(s["id"], m["id"])] for m in shows))
+        counts.append(c)
+    most = model.NewIntVar(0, len(shows), "most")
+    least = model.NewIntVar(0, len(shows), "least")
+    model.AddMaxEquality(most, counts)
+    model.AddMinEquality(least, counts)
+    imbalance = most - least
+
+    # B. Prefer 60+ min between a server's shows (45-59 is allowed but penalized)
+    preferred_gap = rules["preferred_minutes_between_show_starts"]
+    tight_pairs = []
+    for i, a in enumerate(shows):
+        for b in shows[i + 1:]:
+            gap = abs(a["start_min"] - b["start_min"])
+            if min_gap <= gap < preferred_gap:
+                tight_pairs.append((a, b))
+
+    tight = []
+    for s in servers:
+        for a, b in tight_pairs:
+            both = model.NewBoolVar(f"tight_{s['id']}_{a['id']}_{b['id']}")
+            model.Add(both >= x[(s["id"], a["id"])] + x[(s["id"], b["id"])] - 1)
+            tight.append(both)
+
+    # C. Don't add a second server to a show unless it helps
+    extra_servers = sum(x.values()) - len(shows)
+
+    model.Minimize(10 * imbalance + 3 * sum(tight) + 1 * extra_servers)
+
     # 7. Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 10
     status = solver.Solve(model)
-    
+
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        return {"status": solver.StatusName(status), "assignments": []}
+        return {
+            "date": data["date"],
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "status": solver.StatusName(status),
+            "assignments": [],
+           }
 
     # 8. Read the answer back out
     assignments = []
@@ -83,7 +122,12 @@ def solve(data):
             "shows": [{"show_id": m["id"], "title": m["title"], "start": m["start"]} for m in worked],
         })
 
-    return {"status": solver.StatusName(status), "assignments": assignments}
+    return {
+            "date": data["date"],
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "status": solver.StatusName(status),
+            "assignments": assignments,
+        }
 
 
 def main():
