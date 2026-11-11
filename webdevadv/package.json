@@ -10,6 +10,7 @@
     "lint": "eslint --cache .",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
+    "test": "vitest",
     "build": "electron-vite build",
     "postinstall": "install-electron && electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
@@ -21,7 +22,8 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "electron-updater": "^6.8.9",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "vitest": "^5.1.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config": "^3.0.0",
