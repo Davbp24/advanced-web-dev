@@ -53,7 +53,7 @@ function buildJson(data, range, startRow, header) {
     solverFormat.shows.push({ 
       id: "m" + (i - startRow),
       title: data[i][header.movie],
-      start: data[i][header.start].replace(/[a-zA-Z]/g, ''),
+      start: militaryTime(data[i][header.start]),
       auditorium: data[i][header.auditorium],
     });
   }
@@ -88,8 +88,20 @@ function normalizeData(str) {
 }
 
 
+function militaryTime(str) {
+  let time = normalizeData(str);
+  if (!['p', 'a'].includes(time[time.length - 1])) return time;
+  if (time[time.length - 1] === 'a' || time.slice(0, 3) === '12:') return time.substring(0, time.length - 1);
+  if (!time.includes(":")) return time;
+
+  time = time.substring(0, time.length - 1);
+  const [hour, minute] = time.split(':');
+  return String(Number(hour) + 12) + ':' + minute;
+}
+
+
 function main() {
-  const workbook = XLSX.readFile('MovieData1.xlsx', { cellDates: true });
+  const workbook = XLSX.readFile('MovieData.xlsx', { cellDates: true });
   // const workbook = XLSX.readfile('c:/Users/.../MovieData.xlsx', { cellDates: true });
   const jsonData = parseSheet(workbook);
   console.log('JSON:\n', jsonData);
