@@ -1,6 +1,12 @@
 const XLSX = require('xlsx');
 
-// hashmap of potential header names (e.g., 'movie', 'title', etc.), maps to one defined name
+/* 
+ * HashMap of potential header names
+ *
+ * The file should be typically structured as 'Start', 'End', 'Movie', 'Rating', 'Auditorium',
+ * But incase the file is formatted with 'Beginning', 'Finish', 'Title', 'Score', 'Aud',
+ * This hashmap catches that different format and maps it to match the typical structure
+ */
 const headers = new Map([
   // start
   ['start', 'start'], ['begin', 'start'], ['beginning', 'start'], ['showtime', 'start'],
@@ -23,7 +29,7 @@ function parseSheet(workbook) {
   // get the area that we parse
   let range = XLSX.utils.decode_range(worksheet['!ref']);
   console.log(`start row: ${range.s.r}, start column: ${range.s.c}`);
-  console.log(`end row: ${range.e.r}, `, `end column: ${range.e.r}\n\n`)
+  console.log(`end row: ${range.e.r}, `, `end column: ${range.e.c}\n\n`)
 
   const spreadsheet = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // 2D array of entire spreadsheet
   console.log("spreadsheet: ");
@@ -39,11 +45,11 @@ function parseSheet(workbook) {
 
 
 function buildJson(data, range, startRow, header) {
-  if (!data[startRow + 1].length) throw new Error('nothing to parse after header row');
+  if (startRow + 1 >= data.length) throw new Error('header is final row, so there is nothing to parse');
 
   const solverFormat = { shows: [] };
 
-  for (let i = startRow + 1; i < range.e.r - 1; i++) {
+  for (let i = startRow + 1; i <= range.e.r; i++) {
     solverFormat.shows.push({ 
       id: "m" + (i - startRow),
       title: data[i][header.movie],
@@ -65,9 +71,9 @@ function findHeaderRow(data, range) {
 
       exclusions.add(headers.get(normalized));
 
+      // header ignores 'end' and 'rating' and only stores column indexes of 'start', 'movie', and 'auditorium'
       if(!['end', 'rating'].includes(headers.get(normalized))) {
         header[headers.get(normalized)] = j; 
-        // header ONLY stores column indexes of 'start', 'movie', and 'auditorium'
       }
       if (j === range.e.c - 1) return { startRow: i, header };
     }
@@ -83,7 +89,7 @@ function normalizeData(str) {
 
 
 function main() {
-  const workbook = XLSX.readFile('MovieData.xlsx', { cellDates: true });
+  const workbook = XLSX.readFile('MovieData1.xlsx', { cellDates: true });
   // const workbook = XLSX.readfile('c:/Users/.../MovieData.xlsx', { cellDates: true });
   const jsonData = parseSheet(workbook);
   console.log('JSON:\n', jsonData);
