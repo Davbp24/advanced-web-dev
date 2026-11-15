@@ -11,7 +11,7 @@ import XLSX from 'xlsx'
  */
 const parserUrl = new URL('../../parser/parse.js', import.meta.url)
 const parserSource = readFileSync(parserUrl, 'utf8').replace(/^main\(\);\s*$/m, '')
-const { parseSheet } = runInNewContext(`${parserSource}\n;({ parseSheet });`, {
+const { parseSheet, militaryTime } = runInNewContext(`${parserSource}\n;({ parseSheet, militaryTime });`, {
   require: createRequire(parserUrl),
   console: { log() {} }
 })
@@ -22,16 +22,73 @@ const secondRow = ['Movie 2', '13:00', 2, '14:30', 'PG-13']
 const firstShow = { id: 'm1', title: 'Movie 1', start: '12:30', auditorium: 1 }
 const secondShow = { id: 'm2', title: 'Movie 2', start: '13:00', auditorium: 2 }
 
+// each element in `rows` represents a real row in an Excel file, sequentially
 function workbookFromRows(rows) {
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Schedule')
   return workbook
 }
 
+describe('militaryTime', () => {
+  test.each([
+    ['1:00P', '13:00'],
+    ['1:05p', '13:05'],
+    [' 1:05 PM ', '13:05'],
+    ['1:05 p.m.', '13:05'],
+    ['9:05A', '09:05'],
+    ['9:05 AM', '09:05'],
+    ['12:00A', '00:00'],
+    ['12:30 am', '00:30'],
+    ['12:00P', '12:00'],
+    ['12:30 PM', '12:30'],
+    ['00:00', '00:00'],
+    ['9:05', '09:05'],
+    ['23:59', '23:59'],
+    ['13:05:30', '13:05'],
+    [0, '00:00'],
+    [0.5, '12:00'],
+    [13.5 / 24, '13:30'],
+    [46000 + 13.5 / 24, '13:30'],
+    [new Date(2026, 10, 14, 13, 5), '13:05'],
+    [new Date(2026, 10, 14, 0, 0), '00:00']
+  ])('converts %s to %s', (input, expected) => {
+    expect(militaryTime(input)).toBe(expected)
+  })
+
+  test.each([
+    '', 'not a time', '24:00', '12:60', '00:30 PM', '13:00P',
+    '1:30 PM extra', null, undefined, true, NaN, Infinity, -1, new Date(NaN)
+  ])('rejects invalid time %s', (input) => {
+    expect(() => militaryTime(input)).toThrow('Invalid showtime')
+  })
+
+  /*
+   * This checks that the same Excel time parses correctly whether Excel supplies it as a `Date` or a number
+   * `cellDates = true` -- Excel supplies it as a Date. `cellDates = false` -- Excel supplies it as a number
+   */
+  test.each([true, false])('parses Excel time cells with cellDates=%s', (cellDates) => {
+    const workbook = workbookFromRows([
+      header,
+      ['Movie 1', new Date(2026, 10, 14, 13, 30), 1, '15:00', 'PG']
+    ])
+    // convert the workbook into Excel file bytes (basically make a .xlsx file)
+    const bytes = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+    const loaded = XLSX.read(bytes, { type: 'buffer', cellDates })
+
+    // from that Excel file, get the time (from cell B2 from the workbook)
+    const time = loaded.Sheets.Schedule.B2.v
+
+    // when cellDates = true, time should be an instance of date. Otherwise, it should be a number.
+    expect(time instanceof Date).toBe(cellDates)
+    expect(parseSheet(loaded)).toEqual({
+      shows: [{ id: 'm1', title: 'Movie 1', start: '13:30', auditorium: 1 }]
+    })
+  })
+})
+
 describe('parseSheet header location', () => {
   test('reports no data when the header is the final row', () => {
     const workbook = workbookFromRows([['Cinema schedule'], header])
-    console.log(workbook)
 
     expect(() => parseSheet(workbook)).toThrow('header is final row, so there is nothing to parse')
   })
@@ -43,11 +100,7 @@ describe('parseSheet header location', () => {
   })
 
   test('reports a missing header', () => {
-    const workbook = workbookFromRows([
-      ['Cinema schedule'],
-      firstRow,
-      secondRow
-    ])
+    const workbook = workbookFromRows([['Cinema schedule'], firstRow, secondRow])
 
     expect(() => parseSheet(workbook)).toThrow('Header row not found')
   })
@@ -68,6 +121,55 @@ describe('parseSheet header location', () => {
     const workbook = workbookFromRows([header, firstRow, secondRow])
 
     expect(parseSheet(workbook)).toEqual({ shows: [firstShow, secondShow] })
+  })
+})
+
+describe('parseSheet blank rows', () => {
+  test('skips two trailing empty rows included in the worksheet range', () => {
+    const workbook = workbookFromRows([header, firstRow])
+    workbook.Sheets.Schedule['!ref'] = 'A1:E4'
+
+    expect(parseSheet(workbook)).toEqual({ shows: [firstShow] })
+  })
+
+  test('skips internal empty rows and keeps show IDs consecutive', () => {
+    const workbook = workbookFromRows([header, firstRow, [], secondRow])
+
+    expect(parseSheet(workbook)).toEqual({ shows: [firstShow, secondShow] })
+  })
+
+  test('skips rows containing only empty cells or whitespace', () => {
+    const workbook = workbookFromRows([
+      header,
+      firstRow,
+      [null, '', '   ', undefined, '\t'],
+      secondRow
+    ])
+
+    expect(parseSheet(workbook)).toEqual({ shows: [firstShow, secondShow] })
+  })
+
+  test('reports no data when only blank rows follow the header', () => {
+    const workbook = workbookFromRows([header])
+    workbook.Sheets.Schedule['!ref'] = 'A1:E3'
+
+    expect(() => parseSheet(workbook)).toThrow('nothing to parse after header row')
+  })
+
+  // tests that a '0' in a cell is not considered blank
+  test('keeps numeric midnight as a valid showtime', () => {
+    const workbook = workbookFromRows([header, ['Movie 1', 0, 1]])
+    // the '0' represents a start time at midnight (00:00)
+
+    expect(parseSheet(workbook)).toEqual({
+      shows: [{ id: 'm1', title: 'Movie 1', start: '00:00', auditorium: 1 }]
+    })
+  })
+
+  test('does not silently skip a populated row with a missing showtime', () => {
+    const workbook = workbookFromRows([header, ['Movie 1', null, 1]])
+
+    expect(() => parseSheet(workbook)).toThrow('Invalid showtime')
   })
 })
 
