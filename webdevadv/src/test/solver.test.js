@@ -52,7 +52,7 @@ test('solver run', { timeout: 30_000 }, async () => {
     try {
         expect(res['ok']).toBe(true);
     } catch (erorr) {
-        throw new Error("Connection failed: ") + res['error']
+        throw new Error("Connection failed: " + res['error']);
     } 
 
     const assignments = res['schedule']['assignments']
@@ -76,7 +76,6 @@ test('solver run', { timeout: 30_000 }, async () => {
             const show_id = actualShows[i]['show_id']
 
             const expectedShow = expectedShows[i];
-
 
             try {
                 expect(show_id).toBe(expectedShow);
