@@ -6,3 +6,4 @@ out
 .eslintcache
 *.log*
 .venv
+venv
