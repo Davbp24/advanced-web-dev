@@ -18,8 +18,24 @@ jobs:
         with:
           node-version: 26
 
-      - name: Install dependencies
-        run: npm install
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Set-up Python virutal environment
+        working-directory: ./webdevadv/solver
+        run: python -m venv venv
+
+      - name: Activate virtual environment
+        working-directory: ./webdevadv/solver
+        run: source venv/bin/activate
+
+      - name: Install Python dependencies
+        working-directory: ./webdevadv/solver
+        run: pip install -r requirements.txt
 
       - name: Run tests
+        working-directory: ./webdevadv
         run: npm test
