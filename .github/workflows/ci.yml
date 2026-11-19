@@ -18,6 +18,10 @@ jobs:
         with:
           node-version: 26
 
+      - name: Install Node dependencies
+        working-directory: "./webdevadv"
+        run: npm install
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
