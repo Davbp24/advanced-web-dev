@@ -28,6 +28,9 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      - name: Set up database
+        run: python initialize.py
+
       - name: Set-up Python virutal environment
         working-directory: ./webdevadv/solver
         run: python -m venv venv
