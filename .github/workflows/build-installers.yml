@@ -1,0 +1,73 @@
+# Builds the Windows and Apple Silicon Mac installers on GitHub's computers.
+# PyInstaller can only build for the computer it runs on, so each installer
+# is built on its own operating system.
+#
+# Run it from GitHub: Actions -> Build installers -> Run workflow.
+# When it finishes, download the installers from the run's "Artifacts" section.
+
+name: Build installers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: build:win
+            installer: webdevadv/dist/*.exe
+            name: theater-scheduler-windows
+          - os: macos-latest # Apple Silicon (arm64)
+            build: build:mac
+            installer: webdevadv/dist/*.dmg
+            name: theater-scheduler-mac-apple-silicon
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        working-directory: webdevadv
+
+    env:
+      # The app is unsigned; don't let electron-builder look for signing certificates.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webdevadv/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      # build:solver uses .venv/bin/python (Mac) or .venv\Scripts\python.exe (Windows)
+      - name: Create Python environment with the solver's packages
+        shell: bash
+        run: |
+          python -m venv .venv
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
+          "$PY" -m pip install -r solver/requirements.txt -r solver/requirements-build.txt
+
+      - name: Install Node packages
+        run: npm ci
+
+      - name: Build installer (solver bundle, app, installer)
+        run: npm run ${{ matrix.build }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.installer }}
+          if-no-files-found: error
