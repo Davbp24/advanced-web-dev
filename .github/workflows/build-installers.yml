@@ -9,6 +9,9 @@ name: Build installers
 
 on:
   workflow_dispatch:
+  # TEMPORARY: lets the build run before this workflow is on main. Remove before merging.
+  push:
+    branches: [desktop-app-packaging]
 
 jobs:
   build:
@@ -20,10 +23,13 @@ jobs:
             build: build:win
             installer: webdevadv/dist/*.exe
             name: theater-scheduler-windows
+            # Where the packaged solver ends up inside the built app
+            solver: dist/win-unpacked/resources/solver/solver.exe
           - os: macos-latest # Apple Silicon (arm64)
             build: build:mac
             installer: webdevadv/dist/*.dmg
             name: theater-scheduler-mac-apple-silicon
+            solver: dist/mac-arm64/Theater Scheduler.app/Contents/Resources/solver/solver
 
     runs-on: ${{ matrix.os }}
 
@@ -64,6 +70,26 @@ jobs:
 
       - name: Build installer (solver bundle, app, installer)
         run: npm run ${{ matrix.build }}
+
+      # Runs the solver that was packed into the app on the sample data, and checks it
+      # gives the same schedule as running solver.py with Python. Fails the build if not.
+      - name: Check the packaged solver makes a schedule
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
+          "${{ matrix.solver }}" < solver/sample_input.json > packaged-output.json
+          "$PY" solver/solver.py < solver/sample_input.json > python-output.json
+          "$PY" - <<'EOF'
+          import json, sys
+          packaged = json.load(open("packaged-output.json"))
+          python = json.load(open("python-output.json"))
+          print("Packaged solver status:", packaged["status"], "| servers scheduled:", len(packaged["assignments"]))
+          if packaged["status"] not in ("OPTIMAL", "FEASIBLE") or not packaged["assignments"]:
+              sys.exit("FAIL: the packaged solver did not make a schedule")
+          if (packaged["status"], packaged["assignments"]) != (python["status"], python["assignments"]):
+              sys.exit("FAIL: the packaged solver's schedule is different from solver.py's")
+          print("PASS: same schedule as solver.py")
+          EOF
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
