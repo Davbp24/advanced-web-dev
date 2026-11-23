@@ -38,18 +38,22 @@ def solve(data):
         for m in shows:
             x[(s["id"], m["id"])] = model.NewBoolVar(f"x_{s['id']}_{m['id']}")
 
-    # 3. Rule: a server can only work shows inside their eligible window
+    # 3. Rule (hard): a server can only work shows inside their eligible window
     for s in servers:
         for m in shows:
             if not is_eligible(s, m, rules):
                 model.Add(x[(s["id"], m["id"])] == 0)
 
-    # 4. Rule: every show gets between min and max servers
+    # 4. Rule: every show gets between min and max servers (min is soft, max is hard)
+    shortfall = {}
     for m in shows:
         assigned = sum(x[(s["id"], m["id"])] for s in servers)
-        model.Add(assigned >= rules["min_servers_per_show"])
+        short = model.NewIntVar(0, rules["min_servers_per_show"], f"short_{m['id']}")
+        model.Add(assigned + short >= rules["min_servers_per_show"])
         model.Add(assigned <= rules["max_servers_per_show"])
-    # 5. Rule: a server's shows must start at least N minutes apart
+        shortfall[m["id"]] = short
+
+    # 5. Rule (hard): a server's shows must start at least N minutes apart
     min_gap = rules["min_minutes_between_show_starts"]
     conflicting_pairs = []
     for i, a in enumerate(shows):
@@ -61,12 +65,17 @@ def solve(data):
         for a, b in conflicting_pairs:
             model.Add(x[(s["id"], a["id"])] + x[(s["id"], b["id"])] <= 1)
 
-    # 6. Rule: every server works at least N shows
+    # 6. Rule (soft): every server works at least N shows
+    missing = {}
     for s in servers:
         worked = sum(x[(s["id"], m["id"])] for m in shows)
-        model.Add(worked >= rules["min_shows_per_server"])
+        miss = model.NewIntVar(0, rules["min_shows_per_server"], f"missing_{s['id']}")
+        model.Add(worked + miss >= rules["min_shows_per_server"])
+        missing[s["id"]] = miss
 
- # A. Fairness: keep the busiest and least-busy server close together
+    # ---- Objective: the score the solver tries to make as small as possible ----
+
+    # A. Fairness: keep the busiest and least-busy server close together
     counts = []
     for s in servers:
         c = model.NewIntVar(0, len(shows), f"count_{s['id']}")
@@ -95,9 +104,16 @@ def solve(data):
             tight.append(both)
 
     # C. Don't add a second server to a show unless it helps
-    extra_servers = sum(x.values()) - len(shows)
+    extra_servers = (sum(x.values()) + sum(shortfall.values())
+                     - len(shows) * rules["min_servers_per_show"])
 
-    model.Minimize(10 * imbalance + 3 * sum(tight) + 1 * extra_servers)
+    model.Minimize(
+        1000 * sum(shortfall.values())   # uncovered shows: worst
+        + 100 * sum(missing.values())    # servers below their minimum
+        + 10 * imbalance                 # unfair workload
+        + 3 * sum(tight)                 # gaps under 60 min
+        + 1 * extra_servers              # unnecessary second servers
+    )
 
     # 7. Solve
     solver = cp_model.CpSolver()
@@ -110,7 +126,8 @@ def solve(data):
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "status": solver.StatusName(status),
             "assignments": [],
-           }
+            "warnings": [],
+        }
 
     # 8. Read the answer back out
     assignments = []
@@ -122,12 +139,32 @@ def solve(data):
             "shows": [{"show_id": m["id"], "title": m["title"], "start": m["start"]} for m in worked],
         })
 
+    # 9. Report anything the solver couldn't satisfy
+    warnings = []
+    for m in shows:
+        if solver.Value(shortfall[m["id"]]) > 0:
+            warnings.append({
+                "type": "uncovered_show",
+                "show_id": m["id"],
+                "title": m["title"],
+                "start": m["start"],
+            })
+    for s in servers:
+        if solver.Value(missing[s["id"]]) > 0:
+            warnings.append({
+                "type": "below_min_shows",
+                "server_id": s["id"],
+                "name": s["name"],
+                "missing": solver.Value(missing[s["id"]]),
+            })
+
     return {
-            "date": data["date"],
-            "generated_at": datetime.now().isoformat(timespec="seconds"),
-            "status": solver.StatusName(status),
-            "assignments": assignments,
-        }
+        "date": data["date"],
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "status": solver.StatusName(status),
+        "assignments": assignments,
+        "warnings": warnings,
+    }
 
 
 def main():
