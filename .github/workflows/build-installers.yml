@@ -1,4 +1,4 @@
-# Builds the Windows and Apple Silicon Mac installers on GitHub's computers.
+# Builds the Windows, Apple Silicon Mac and Intel Mac installers on GitHub's computers.
 # PyInstaller can only build for the computer it runs on, so each installer
 # is built on its own operating system.
 #
@@ -30,6 +30,11 @@ jobs:
             installer: webdevadv/dist/*.dmg
             name: theater-scheduler-mac-apple-silicon
             solver: dist/mac-arm64/Theater Scheduler.app/Contents/Resources/solver/solver
+          - os: macos-15-intel # Intel (x64)
+            build: build:mac
+            installer: webdevadv/dist/*.dmg
+            name: theater-scheduler-mac-intel
+            solver: dist/mac/Theater Scheduler.app/Contents/Resources/solver/solver
 
     runs-on: ${{ matrix.os }}
 
