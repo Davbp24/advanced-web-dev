@@ -2,16 +2,16 @@
 # PyInstaller can only build for the computer it runs on, so each installer
 # is built on its own operating system.
 #
-# Run it from GitHub: Actions -> Build installers -> Run workflow.
-# When it finishes, download the installers from the run's "Artifacts" section.
+# Runs by itself on every push/merge to main (or by hand: Actions -> Build installers
+# -> Run workflow). If all 3 builds pass, the "release" job puts the 3 installers in
+# the "latest" release on the repo's Releases page, replacing the old ones.
 
 name: Build installers
 
 on:
   workflow_dispatch:
-  # TEMPORARY: lets the build run before this workflow is on main. Remove before merging.
   push:
-    branches: [desktop-app-packaging]
+    branches: [main]
 
 jobs:
   build:
@@ -102,3 +102,43 @@ jobs:
           name: ${{ matrix.name }}
           path: ${{ matrix.installer }}
           if-no-files-found: error
+
+  # Runs only if all 3 builds above passed, and only for main.
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # lets this job edit the Releases page
+
+    steps:
+      - name: Download the 3 installers from the builds
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Replace the "latest" release with the new installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l installers
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest installers/* \
+            --target "${{ github.sha }}" \
+            --latest \
+            --title "Theater Scheduler (latest)" \
+            --notes "Download the file for your computer:
+
+          - **Windows**: \`theater-scheduler-<version>-setup.exe\`
+          - **Mac with M1/M2/M3/M4 chip**: \`theater-scheduler-<version>-arm64.dmg\`
+          - **Mac with Intel chip**: \`theater-scheduler-<version>-x64.dmg\`
+
+          Not sure which Mac you have? Apple menu → About This Mac → \"Chip\" (Apple M…) or \"Processor\" (Intel).
+
+          The app isn't signed, so the first time you open it:
+          - **Mac**: open it once, then System Settings → Privacy & Security → Open Anyway.
+          - **Windows**: on \"Windows protected your PC\", click More info → Run anyway.
+
+          Built automatically from commit ${{ github.sha }}."
