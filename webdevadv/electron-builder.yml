@@ -1,19 +1,30 @@
-appId: com.electron.app
-productName: webdevadv
+appId: com.theaterscheduler.app
+productName: Theater Scheduler
 directories:
   buildResources: build
 files:
   - '!**/.vscode/*'
-  - '!src/*'
+  - '!src/**'
+  - '!.venv/**'
+  - '!solver/**'
+  - '!solver-dist/**'
+  - '!scripts/**'
+  - '!.github/**'
+  - '!specs/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
 asarUnpack:
   - resources/**
+# The solver program must sit outside app.asar so the OS can run it.
+# Ends up at <resourcesPath>/solver/solver (solver.exe on Windows).
+extraResources:
+  - from: solver-dist/solver
+    to: solver
 win:
-  executableName: webdevadv
+  executableName: theater-scheduler
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: theater-scheduler-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -26,7 +37,7 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: theater-scheduler-${version}-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -37,6 +48,3 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates

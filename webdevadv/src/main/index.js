@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { runSolver } from './solver'
+import { runSolver, solverCommand } from './solver'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -56,7 +56,15 @@ app.whenReady().then(() => {
     if (!data || !data.rules || !Array.isArray(data.servers) || !Array.isArray(data.shows)) {
       return { ok: false, error: 'Invalid request: expected rules plus lists of servers and shows' }
     }
-    return runSolver(data, { script: join(app.getAppPath(), 'solver', 'solver.py') })
+    return runSolver(
+      data,
+      solverCommand({
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        appPath: app.getAppPath(),
+        platform: process.platform
+      })
+    )
   })
 
   createWindow()
