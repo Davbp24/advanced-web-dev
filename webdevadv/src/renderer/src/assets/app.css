@@ -1,0 +1,36 @@
+#sign-in-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+
+}
+
+.title1 {
+
+    padding: 10px;
+    margin: 10px;
+
+
+}
+
+.inputText {
+    padding: 10px;
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    
+
+}
+
+#sign-in-button {
+    padding: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
+    margin: 10px;
+
+}
