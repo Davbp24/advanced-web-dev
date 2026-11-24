@@ -19,6 +19,10 @@ class Employee {
     getName(){
         return this.#name;
     }
+    
+    getOccupation(){
+        return this.#occupation;
+    }
 
 }
 

@@ -131,8 +131,11 @@ def solve(data):
 
 
 def main():
-    data = json.load(sys.stdin)
+    
+    data = json.load(sys.stdin) #changed in this commit from file
+    # data = json.load(sys.stdin)
     result = solve(data)
+
     json.dump(result, sys.stdout, indent=2)
 
 

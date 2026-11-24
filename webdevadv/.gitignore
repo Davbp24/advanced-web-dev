@@ -6,3 +6,5 @@ out
 .eslintcache
 *.log*
 .venv
+venv
+solver-dist

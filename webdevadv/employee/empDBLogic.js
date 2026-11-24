@@ -1,11 +1,10 @@
 import Employee from './employee';
-
-
+import { db } from '../solver/initialize';
 
 
 const writeToDB = (name, occupation) => {
-
-    //Create employee
+    
+    
     employee = new Employee(name, occupation);
 
     //Send employee over to db
