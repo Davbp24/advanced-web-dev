@@ -1,6 +1,5 @@
 import json
 import sys
-from initialize import add_to_table
 from datetime import datetime
 
 from ortools.sat.python import cp_model
@@ -169,12 +168,8 @@ def solve(data):
 
 
 def main():
-    with open("sample_input.json", "r", encoding="utf-8") as file:
-        data = json.load(file)
-    # data = json.load(sys.stdin)
+    data = json.load(sys.stdin)
     result = solve(data)
-    add_to_table(result)
-
     json.dump(result, sys.stdout, indent=2)
 
 
