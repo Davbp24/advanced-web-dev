@@ -3,7 +3,7 @@ import { runSolver, solverCommand } from './solver'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initializeDatabase, db } from '../../solver/initialize'
+import { initializeDatabase, db } from '../../database/initialize'
 
 function createWindow() {
   // Create the browser window.

@@ -1,5 +1,5 @@
 import Employee from './employee';
-import { db } from '../solver/initialize';
+import { db } from '../database/initialize';
 
 
 const writeToDB = (name, occupation) => {

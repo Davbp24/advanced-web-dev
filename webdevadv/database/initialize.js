@@ -1,5 +1,7 @@
 // import sqlite3 from 'sqlite3'
 import Database from 'better-sqlite3';
+import { app } from 'electron';
+import { join } from path;
 
 const DATABASE_NAME = 'MovieTheater.db'
 const TABLE_NAME = 'schedulesTable'
@@ -19,7 +21,8 @@ const TABLE_EMP = `
     employee_name TEXT NOT NULL
   )
 `
-const db = new Database(DATABASE_NAME);
+
+let db; //necessary for initializedatabase function code
 
 
 //TODO: check if there's a difference between the const db and let db.
@@ -112,8 +115,13 @@ function addToTable(scheduleJson, db, tableName = TABLE_NAME) {
 }
 
 function initializeDatabase(){
+  const dbPath = join(app.getPath('userData'), DATABASE_NAME)
+  db = new Database(dbPath)
+
   createTable(db, TABLE_SCHEDULE)
   createTable(db, TABLE_EMP)
+
+  return db
 }
 
 // ============================================================================
