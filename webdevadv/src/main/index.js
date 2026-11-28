@@ -84,7 +84,7 @@ app.whenReady().then(() => {
 
 //close database connection completely before the application finishes.
 app.on('before-quit', () => {
-  if (db.open) db.close()
+  if(db?.open) db.close()
 })
 
 app.on('window-all-closed', () => {
