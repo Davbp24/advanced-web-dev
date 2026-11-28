@@ -15,4 +15,4 @@ function Error404() {
   )
 }
 
-export default App
+export default Error404;

@@ -15,4 +15,4 @@ function Management() {
   )
 }
 
-export default App
+export default Management;

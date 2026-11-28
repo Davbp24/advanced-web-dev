@@ -1,37 +1,34 @@
 // import sqlite3 from 'sqlite3'
-const Database = require('better-sqlite3')
+import Database from 'better-sqlite3';
+import { app } from 'electron';
+import { join } from 'path';
 
 const DATABASE_NAME = 'MovieTheater.db'
 const TABLE_NAME = 'schedulesTable'
-const TABLE_SCHEMA = `
+const TABLE_EMP_NAME = 'employeesTable'
+const TABLE_SCHEDULE = `
   CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
     id       INTEGER PRIMARY KEY,
     date     TEXT NOT NULL,
     schedule TEXT NOT NULL
+  ) 
+`
+
+const TABLE_EMP = `
+  CREATE TABLE IF NOT EXISTS ${TABLE_EMP_NAME} (
+    id       INTEGER PRIMARY KEY,
+    occupation     TEXT NOT NULL,
+    employee_name TEXT NOT NULL
   )
 `
 
-// TODO: Create a function that takes in a name and makes it lowercase letters with no spaces and numbers?
+let db; //necessary for initializedatabase function code
 
-// Connect to the database (implicitly creates the file if it doesn't exist)
-function dbConnection(dbName = DATABASE_NAME) {
-  let db
-  try {
-    db = new Database(dbName);
-    console.log(`Database ${dbName} connected/created successfully.`)
-  } catch (err) {
-    console.error(`Failed to open/create ${dbName}. Please try again.`, err)
-    throw err
-  } finally {
-    if (db) db.close()
-  }
-}
 
 //TODO: check if there's a difference between the const db and let db.
 
 // Create table with schema without breaking if it already exists
-function createTable(tableSchema, dbCon = DATABASE_NAME) {
-  const db = new Database(dbCon);
+function createTable(db, tableSchema, dbCon = DATABASE_NAME) {
   try {
     db.exec(tableSchema)
     console.log('Table ' + dbCon + ' created successfully.')
@@ -44,13 +41,10 @@ function createTable(tableSchema, dbCon = DATABASE_NAME) {
       console.error(`Failed to create table with schema: ${tableSchema}\nPlease try again.`, err)
       throw err
     }
-  } finally {
-    db.close()
-  }
+  } 
 }
 
-function readAllTables(dbCon = DATABASE_NAME) {
-  const db = new Database(dbCon);
+function readAllTables(db) {
   try {
     const tables = db
       .prepare(
@@ -68,13 +62,11 @@ function readAllTables(dbCon = DATABASE_NAME) {
   } catch (err) {
     console.error(`Failed to read all tables from database ${dbCon}. Please try again.`, err)
     throw err
-  } finally {
-    db.close()
-  }
+  } 
 }
 
-function readTable(dbCon = DATABASE_NAME, tableName = TABLE_NAME) {
-  const db = new Database(dbCon);
+function readTable(db, tableName = TABLE_NAME) {
+  
   try {
     const rows = db.prepare(`SELECT * FROM ${tableName}`).all()
 
@@ -85,13 +77,11 @@ function readTable(dbCon = DATABASE_NAME, tableName = TABLE_NAME) {
   } catch (err) {
     console.error(`Failed to read values from table ${tableName}. Please try again.`, err)
     throw err
-  } finally {
-    db.close()
-  }
+  } 
 }
 
-function readTableSchema(dbCon = DATABASE_NAME, tableName = TABLE_NAME) {
-  const db = new Database(dbCon);
+function readTableSchema(db, tableName = TABLE_NAME) {
+
   try {
     const result = db
       .prepare('SELECT sql FROM sqlite_schema WHERE type="table" AND name=?')
@@ -102,13 +92,15 @@ function readTableSchema(dbCon = DATABASE_NAME, tableName = TABLE_NAME) {
     } else {
       console.log(`Table '${tableName}' not found.`)
     }
-  } finally {
-    db.close()
-  }
+  } catch (err) {
+    console.error(`Failed to read table schema from ${tableName}. Please try again.`, err)
+    throw err
+  } 
+  
 }
 
-function addToTable(scheduleJson, dbCon = DATABASE_NAME, tableName = TABLE_NAME) {
-  const db = new Database(dbCon);
+function addToTable(scheduleJson, db, tableName = TABLE_NAME) {
+
   try {
     const stmt = db.prepare(`INSERT INTO ${tableName} (date, schedule) VALUES (?, ?)`)
 
@@ -116,15 +108,30 @@ function addToTable(scheduleJson, dbCon = DATABASE_NAME, tableName = TABLE_NAME)
     const currentDate = new Date().toISOString().split('T')[0]
 
     stmt.run(currentDate, scheduleJson)
-  } finally {
-    db.close()
-  }
+  } catch (err) {
+    console.error(`Failed to add to ${tableName}. Please try again.`, err)
+    throw err
+  } 
+}
+
+function initializeDatabase(){
+  const dbPath = join(app.getPath('userData'), DATABASE_NAME)
+  db = new Database(dbPath)
+
+  createTable(db, TABLE_SCHEDULE)
+  createTable(db, TABLE_EMP)
+
+  return db
 }
 
 // ============================================================================
-dbConnection()
-createTable(TABLE_SCHEMA)
+
 // readTableSchema()
-readAllTables()
-addToTable('test')
-readTable()
+
+
+
+export {
+  initializeDatabase,
+  addToTable,
+  db
+}
